@@ -142,6 +142,7 @@
                     required
                     autofocus
                 >
+                <small style="color: #888; font-size: 12px;">Enter a valid email address (e.g., user@gmail.com)</small>
             </div>
 
             <div class="form-group">
@@ -151,10 +152,12 @@
                         type="password"
                         id="password"
                         name="password"
+                        placeholder="password"
                         required
                     >
                     <i class="bi bi-eye eye-toggle" id="togglePassword"></i>
                 </div>
+                <small style="color: #888; font-size: 12px;">For testing, use: <strong>password</strong></small>
             </div>
 
             <button type="submit">Send OTP Code</button>

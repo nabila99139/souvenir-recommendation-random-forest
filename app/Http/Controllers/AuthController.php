@@ -29,8 +29,16 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
+            'email' => 'required|email|max:255|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/',
+            'password' => 'required|string|min:6|max:50',
+        ], [
+            'email.required' => 'Email address is required',
+            'email.email' => 'Please enter a valid email address',
+            'email.max' => 'Email address must not exceed 255 characters',
+            'email.regex' => 'Please enter a valid email format',
+            'password.required' => 'Password is required',
+            'password.min' => 'Password must be at least 6 characters',
+            'password.max' => 'Password must not exceed 50 characters',
         ]);
 
         // Dummy password validation (for testing purposes)
@@ -38,7 +46,7 @@ class AuthController extends Controller
 
         if ($request->password !== $dummyPassword) {
             return back()->withErrors([
-                'password' => 'Invalid password. Use: password',
+                'password' => 'Invalid password. For testing, please use: password',
             ])->withInput();
         }
 
