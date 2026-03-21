@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Register</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * {
@@ -26,7 +26,7 @@
             border-radius: 10px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
         }
         h1 {
             color: #333;
@@ -104,7 +104,7 @@
         .eye-toggle:hover {
             color: #667eea;
         }
-        .register-link {
+        .login-link {
             display: block;
             text-align: center;
             margin-top: 20px;
@@ -112,14 +112,14 @@
             text-decoration: none;
             font-size: 14px;
         }
-        .register-link:hover {
+        .login-link:hover {
             text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h1>Login</h1>
+        <h1>Register</h1>
 
         @if ($errors->any())
             <div class="alert">
@@ -136,11 +136,24 @@
         @endif
 
         <p style="text-align: center; color: #666; margin-bottom: 20px; font-size: 14px;">
-            Enter your registered credentials to login
+            Create your account to access the system
         </p>
 
-        <form method="POST" action="{{ route('auth.login') }}">
+        <form method="POST" action="{{ route('auth.register') }}">
             @csrf
+
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="John Doe"
+                    value="{{ old('name') }}"
+                    required
+                    autofocus
+                >
+            </div>
 
             <div class="form-group">
                 <label for="email">Email Address</label>
@@ -148,12 +161,11 @@
                     type="email"
                     id="email"
                     name="email"
-                    placeholder="your-registered-email@gmail.com"
+                    placeholder="you@example.com"
                     value="{{ old('email') }}"
                     required
-                    autofocus
                 >
-                <small style="color: #888; font-size: 12px;">Enter your registered email address</small>
+                <small style="color: #888; font-size: 12px;">Enter a valid email address (e.g., user@gmail.com)</small>
             </div>
 
             <div class="form-group">
@@ -168,16 +180,32 @@
                     >
                     <i class="bi bi-eye eye-toggle" id="togglePassword"></i>
                 </div>
-                <small style="color: #888; font-size: 12px;">Enter the password you created during registration</small>
+                <small style="color: #888; font-size: 12px;">Minimum 6 characters</small>
             </div>
 
-            <button type="submit">Send OTP Code</button>
+            <div class="form-group">
+                <label for="password_confirmation">Confirm Password</label>
+                <div class="password-container">
+                    <input
+                        type="password"
+                        id="password_confirmation"
+                        name="password_confirmation"
+                        placeholder="••••••••"
+                        required
+                    >
+                    <i class="bi bi-eye eye-toggle" id="togglePasswordConfirm"></i>
+                </div>
+                <small style="color: #888; font-size: 12px;">Must match password above</small>
+            </div>
+
+            <button type="submit">Create Account</button>
         </form>
 
-        <a href="{{ route('auth.register') }}" class="register-link">Don't have an account? Register</a>
+        <a href="{{ route('auth.login') }}" class="login-link">Already have an account? Login</a>
     </div>
 
     <script>
+        // Password field toggle
         const passwordInput = document.getElementById('password');
         const toggleIcon = document.getElementById('togglePassword');
 
@@ -185,13 +213,29 @@
             const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
             passwordInput.setAttribute('type', type);
 
-            // Toggle icon classes
             if (type === 'text') {
                 toggleIcon.classList.remove('bi-eye');
                 toggleIcon.classList.add('bi-eye-slash');
             } else {
                 toggleIcon.classList.remove('bi-eye-slash');
                 toggleIcon.classList.add('bi-eye');
+            }
+        });
+
+        // Password confirmation field toggle
+        const passwordConfirmInput = document.getElementById('password_confirmation');
+        const toggleIconConfirm = document.getElementById('togglePasswordConfirm');
+
+        toggleIconConfirm.addEventListener('click', function() {
+            const type = passwordConfirmInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordConfirmInput.setAttribute('type', type);
+
+            if (type === 'text') {
+                toggleIconConfirm.classList.remove('bi-eye');
+                toggleIconConfirm.classList.add('bi-eye-slash');
+            } else {
+                toggleIconConfirm.classList.remove('bi-eye-slash');
+                toggleIconConfirm.classList.add('bi-eye');
             }
         });
     </script>
