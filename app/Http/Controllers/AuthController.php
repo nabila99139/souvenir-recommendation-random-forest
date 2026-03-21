@@ -33,27 +33,26 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        // Dummy user credentials
-        $dummyEmail = 'admin@test.com';
+        // Dummy password validation (for testing purposes)
         $dummyPassword = 'password';
 
-        if ($request->email !== $dummyEmail || $request->password !== $dummyPassword) {
+        if ($request->password !== $dummyPassword) {
             return back()->withErrors([
-                'email' => 'Invalid credentials.',
-            ]);
+                'password' => 'Invalid password. Use: password',
+            ])->withInput();
         }
 
-        // Generate and store OTP
+        // Generate and store OTP for the user's email
         $code = $this->otpService->generateOtp();
         $this->otpService->storeOtp($request->email, $code);
 
-        // Send OTP
+        // Send OTP to the user's email address
         $this->otpService->sendOtp($request->email, $code);
 
         // Store email in session for verification
         Session::put('login_email', $request->email);
 
-        return redirect()->route('auth.verify');
+        return redirect()->route('auth.verify')->with('success', 'OTP code has been sent to your email!');
     }
 
     /**

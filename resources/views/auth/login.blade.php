@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         * {
             margin: 0;
@@ -83,6 +84,26 @@
             border-color: #cfc;
             color: #3c3;
         }
+        .password-container {
+            position: relative;
+        }
+        .password-container input {
+            padding-right: 40px;
+        }
+        .eye-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            font-size: 20px;
+            color: #666;
+            transition: color 0.3s;
+            display: inline-block;
+        }
+        .eye-toggle:hover {
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
@@ -103,15 +124,20 @@
             </div>
         @endif
 
+        <p style="text-align: center; color: #666; margin-bottom: 20px; font-size: 14px;">
+            Enter your real email to receive OTP code
+        </p>
+
         <form method="POST" action="{{ route('auth.login') }}">
             @csrf
 
             <div class="form-group">
-                <label for="email">Email</label>
+                <label for="email">Email Address</label>
                 <input
                     type="email"
                     id="email"
                     name="email"
+                    placeholder="your-real-email@gmail.com"
                     value="{{ old('email') }}"
                     required
                     autofocus
@@ -120,16 +146,38 @@
 
             <div class="form-group">
                 <label for="password">Password</label>
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    required
-                >
+                <div class="password-container">
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                    >
+                    <i class="bi bi-eye eye-toggle" id="togglePassword"></i>
+                </div>
             </div>
 
-            <button type="submit">Send OTP</button>
+            <button type="submit">Send OTP Code</button>
         </form>
     </div>
+
+    <script>
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('togglePassword');
+
+        toggleIcon.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+
+            // Toggle icon classes
+            if (type === 'text') {
+                toggleIcon.classList.remove('bi-eye');
+                toggleIcon.classList.add('bi-eye-slash');
+            } else {
+                toggleIcon.classList.remove('bi-eye-slash');
+                toggleIcon.classList.add('bi-eye');
+            }
+        });
+    </script>
 </body>
 </html>
