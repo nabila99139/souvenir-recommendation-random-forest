@@ -1,8 +1,16 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SouvenirController;
 use App\Http\Controllers\HomeController;
 use Illuminate\Support\Facades\Route;
+
+// Authentication routes
+Route::get('/login', [AuthController::class, 'showLogin'])->name('auth.login');
+Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
+Route::get('/verify', [AuthController::class, 'showVerify'])->name('auth.verify');
+Route::post('/verify', [AuthController::class, 'verify'])->name('auth.verify');
+Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
 // Home page with recommendation form
 Route::get('/', [HomeController::class, 'index'])->name('home');
