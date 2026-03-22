@@ -23,6 +23,7 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('auth.login');
 Route::post('/login', [AuthController::class, 'login'])->name('auth.login');
 Route::get('/verify', [AuthController::class, 'showVerify'])->name('auth.verify');
 Route::post('/verify', [AuthController::class, 'verify'])->name('auth.verify');
+Route::post('/resend', [AuthController::class, 'resend'])->name('auth.resend');
 Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
 // ============================================

@@ -118,6 +118,17 @@
             </div>
         @endif
 
+        <!-- Resend Button -->
+        <div style="text-align: center; margin-top: 20px;">
+            <form method="POST" action="{{ route('auth.resend') }}" style="display: inline;">
+                @csrf
+                <input type="hidden" name="email" value="{{ $email }}">
+                <button type="submit" style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                    📧 Resend OTP
+                </button>
+            </form>
+        </div>
+
         <form method="POST" action="{{ route('auth.verify') }}">
             @csrf
 
