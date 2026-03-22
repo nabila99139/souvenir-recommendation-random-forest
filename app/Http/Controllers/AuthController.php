@@ -56,11 +56,16 @@ class AuthController extends Controller
             'password.confirmed' => 'Password confirmation does not match',
         ]);
 
-        // Create new user with hashed password
-        User::create([
+        // Create new user with hashed password and admin privileges
+        $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'role' => 'admin', // Make all users admin
+            'is_admin' => true,
+            'cid' => null, // No company association (root admin)
+            'sid' => null, // No site association (root admin)
+            'authorized_by' => null, // System authorized
         ]);
 
         return redirect()->route('auth.login')->with('success', 'Registration successful! Please login with your credentials.');
@@ -155,13 +160,16 @@ class AuthController extends Controller
             Session::forget('login_email');
             Session::forget('login_user_id');
 
-            // Store authenticated user info
+            // Store authenticated user info including admin status
             Session::put('authenticated', true);
             Session::put('user_id', $userId);
             Session::put('user_email', $email);
             Session::put('user_name', $user->name);
+            Session::put('user_role', $user->role);
+            Session::put('is_admin', $user->is_admin);
+            Session::put('is_root_admin', $user->isRootAdmin());
 
-            return redirect()->route('home')->with('success', 'Login successful!');
+            return redirect()->route('home')->with('success', 'Welcome back! You can now explore our souvenir recommendations.');
         }
 
         return back()->withErrors([

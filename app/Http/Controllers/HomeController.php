@@ -30,7 +30,17 @@ class HomeController extends Controller
     }
 
     /**
-     * Show the application home page.
+     * Show the welcome/landing page.
+     *
+     * @return \Illuminate\View\View
+     */
+    public function welcome(): View
+    {
+        return view('welcome');
+    }
+
+    /**
+     * Show the application home page (authenticated).
      *
      * @return \Illuminate\View\View
      */

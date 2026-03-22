@@ -179,10 +179,17 @@
                     <i class="fas fa-cookie text-3xl text-indigo-600 mb-3"></i>
                     <p class="font-semibold">Food</p>
                 </a>
-                <a href="{{ route('catalog') }}" class="bg-white rounded-lg p-6 shadow hover:shadow-lg transition hover:bg-indigo-50">
-                    <i class="fas fa-ring text-3xl text-indigo-600 mb-3"></i>
-                    <p class="font-semibold">Jewelry</p>
-                </a>
+                @if(session('is_admin'))
+                    <a href="{{ route('admin.dashboard') }}" class="bg-indigo-600 text-white rounded-lg p-6 shadow hover:shadow-lg transition hover:bg-indigo-700">
+                        <i class="fas fa-shield-alt text-3xl mb-3"></i>
+                        <p class="font-semibold">Admin Panel</p>
+                    </a>
+                @else
+                    <a href="{{ route('catalog') }}" class="bg-white rounded-lg p-6 shadow hover:shadow-lg transition hover:bg-indigo-50">
+                        <i class="fas fa-ring text-3xl text-indigo-600 mb-3"></i>
+                        <p class="font-semibold">Jewelry</p>
+                    </a>
+                @endif
             </div>
         </div>
     </div>

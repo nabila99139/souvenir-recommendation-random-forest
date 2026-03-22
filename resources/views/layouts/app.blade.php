@@ -26,6 +26,22 @@
                     <a href="{{ route('catalog') }}" class="text-gray-700 hover:text-indigo-600 transition">
                         <i class="fas fa-th-large"></i> Catalog
                     </a>
+                    @if(session('authenticated'))
+                        <span class="text-gray-600">
+                            <i class="fas fa-user"></i> {{ session('user_name') }}
+                        </span>
+                        @if(session('is_admin'))
+                            <a href="{{ route('admin.dashboard') }}" class="text-indigo-600 hover:text-indigo-800 transition" title="Admin Panel">
+                                <i class="fas fa-shield-alt"></i>
+                            </a>
+                        @endif
+                        <form action="{{ route('auth.logout') }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="text-gray-700 hover:text-red-600 transition">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>
