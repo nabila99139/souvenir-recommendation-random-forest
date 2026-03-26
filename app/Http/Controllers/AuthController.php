@@ -3,17 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\OtpService;
+use App\Services\CacheOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OtpMail;
 
 class AuthController extends Controller
 {
-    protected $otpService;
+    protected CacheOtpService $otpService;
 
-    public function __construct(OtpService $otpService)
+    public function __construct(CacheOtpService $otpService)
     {
         $this->otpService = $otpService;
     }
@@ -35,7 +36,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Handle user registration
+     * Handle user registration (stores pending user in cache, sends OTP)
      */
     public function register(Request $request)
     {
@@ -60,26 +61,41 @@ class AuthController extends Controller
         ]);
 
         try {
-            // Create new user with hashed password and admin privileges
-            $user = User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role' => 'admin', // Make all users admin
-                'is_admin' => true,
-                'cid' => null, // No company association (root admin)
-                'sid' => null, // No site association (root admin)
-                'authorized_by' => null, // System authorized
-            ]);
+            // Generate OTP
+            $otp = $this->otpService->generateOtp();
 
-            Log::info('User registered successfully', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'name' => $user->name,
+            // Store pending user data in cache (not in database)
+            $this->otpService->storePendingUser(
+                email: $request->email,
+                name: $request->name,
+                hashedPassword: Hash::make($request->password),
+                otp: $otp,
+                role: 'admin',
+                isAdmin: true
+            );
+
+            // Store OTP in cache
+            $this->otpService->storeOtp($request->email, $otp);
+
+            // Send OTP email
+            $emailSent = $this->sendOtpEmail($request->email, $request->name, $otp);
+
+            // Store email in session for verification page
+            session()->put('verification_email', $request->email);
+            session()->put('verification_type', 'registration');
+
+            Log::info('Pending registration stored and OTP sent', [
+                'email' => $request->email,
+                'name' => $request->name,
+                'email_sent' => $emailSent,
                 'timestamp' => now()
             ]);
 
-            return redirect()->route('auth.login')->with('success', 'Registration successful! Please login with your credentials.');
+            $message = $emailSent
+                ? 'Verification code has been sent to your email! Please check your inbox and spam folder.'
+                : 'We could not send the verification email. Please try again.';
+
+            return redirect()->route('auth.verify')->with('success', $message);
         } catch (\Exception $e) {
             Log::error('Registration failed', [
                 'email' => $request->email,
@@ -130,22 +146,23 @@ class AuthController extends Controller
 
         Log::info('Login credentials verified', ['email' => $request->email, 'user_id' => $user->id]);
 
-        // Store user info in session for verification
-        Session::put('login_user_id', $user->id);
+        // Store user ID in session for verification
+        session()->put('login_user_id', $user->id);
 
         // Generate and store OTP for the user's email
-        $code = $this->otpService->generateOtp();
-        $this->otpService->storeOtp($request->email, $code);
+        $otp = $this->otpService->generateOtp();
+        $this->otpService->storeOtp($request->email, $otp);
 
-        // Send OTP to the user's email address asynchronously via queue
-        $emailSent = $this->otpService->sendOtp($request->email, $code);
+        // Send OTP to the user's email
+        $emailSent = $this->sendOtpEmail($request->email, $user->name, $otp);
 
         // Store email in session for verification
-        Session::put('login_email', $request->email);
+        session()->put('verification_email', $request->email);
+        session()->put('verification_type', 'login');
 
         // Provide immediate feedback about email dispatch
         $message = $emailSent
-            ? 'OTP code has been dispatched to your email! Please check your inbox and spam folder.'
+            ? 'OTP code has been sent to your email! Please check your inbox and spam folder.'
             : 'We could not send the OTP email. Please try again.';
 
         Log::info('Login redirect to OTP verification', [
@@ -162,17 +179,18 @@ class AuthController extends Controller
      */
     public function showVerify()
     {
-        $email = Session::get('login_email');
+        $email = session()->get('verification_email');
+        $verificationType = session()->get('verification_type');
 
         if (!$email) {
-            return redirect()->route('auth.login');
+            return redirect()->route('auth.login')->with('error', 'Session expired. Please try again.');
         }
 
-        return view('auth.verify', compact('email'));
+        return view('auth.verify', compact('email', 'verificationType'));
     }
 
     /**
-     * Verify OTP code
+     * Verify OTP code and complete registration or login
      */
     public function verify(Request $request)
     {
@@ -180,53 +198,138 @@ class AuthController extends Controller
 
         $request->validate([
             'code' => 'required|string|size:6',
+        ], [
+            'code.required' => 'Verification code is required',
+            'code.size' => 'Verification code must be 6 digits',
         ]);
 
-        $email = Session::get('login_email');
+        $email = session()->get('verification_email');
+        $verificationType = session()->get('verification_type');
 
         if (!$email) {
             Log::warning('OTP verification failed - session expired', ['code' => $request->code]);
             return back()->withErrors([
-                'code' => 'Session expired. Please login again.',
+                'code' => 'Session expired. Please start over.',
             ]);
         }
 
-        if ($this->otpService->verifyOtp($email, $request->code)) {
-            // Login successful - authenticate the user
-            $userId = Session::get('login_user_id');
-            $user = User::find($userId);
+        // Verify OTP using cache service
+        $verificationResult = $this->otpService->verifyOtp($email, $request->code);
 
-            Session::forget('login_email');
-            Session::forget('login_user_id');
+        if (!$verificationResult['success']) {
+            return back()->withErrors([
+                'code' => $verificationResult['message'],
+            ]);
+        }
 
-            // Store authenticated user info including admin status
-            Session::put('authenticated', true);
-            Session::put('user_id', $userId);
-            Session::put('user_email', $email);
-            Session::put('user_name', $user->name);
-            Session::put('user_role', $user->role);
-            Session::put('is_admin', $user->is_admin);
-            Session::put('is_root_admin', $user->isRootAdmin());
+        // Based on verification type, complete the flow
+        if ($verificationType === 'registration') {
+            return $this->completeRegistration($email);
+        } elseif ($verificationType === 'login') {
+            return $this->completeLogin($email);
+        }
 
-            Log::info('User successfully authenticated via OTP', [
-                'user_id' => $userId,
-                'email' => $email,
+        return back()->withErrors(['error' => 'Invalid verification flow.']);
+    }
+
+    /**
+     * Complete registration by moving data from cache to users table
+     */
+    private function completeRegistration(string $email)
+    {
+        Log::info('Completing registration', ['email' => $email]);
+
+        // Get pending user data from cache
+        $pendingUser = $this->otpService->getPendingUser($email);
+
+        if (!$pendingUser) {
+            Log::error('Pending user data not found in cache', ['email' => $email]);
+            return back()->withErrors(['error' => 'Registration data expired. Please try again.']);
+        }
+
+        try {
+            // Create user in database
+            $user = User::create([
+                'name' => $pendingUser['name'],
+                'email' => $pendingUser['email'],
+                'password' => $pendingUser['password'], // Already hashed
+                'role' => $pendingUser['role'],
+                'is_admin' => $pendingUser['is_admin'],
+                'cid' => $pendingUser['cid'],
+                'sid' => $pendingUser['sid'],
+                'authorized_by' => $pendingUser['authorized_by'],
+            ]);
+
+            // Remove pending user from cache
+            $this->otpService->removePendingUser($email);
+
+            // Clear verification session data
+            session()->forget(['verification_email', 'verification_type']);
+
+            // Auto-login the user
+            $this->authenticateUser($user);
+
+            Log::info('User registered successfully via OTP verification', [
+                'user_id' => $user->id,
+                'email' => $user->email,
                 'name' => $user->name,
                 'timestamp' => now()
             ]);
 
-            return redirect()->route('home')->with('success', 'Welcome back! You can now explore our souvenir recommendations.');
+            return redirect()->route('home')->with('success', 'Registration successful! Welcome to our souvenir recommendation system.');
+        } catch (\Exception $e) {
+            Log::error('Failed to complete registration', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->withErrors(['error' => 'Registration failed. Please try again.']);
+        }
+    }
+
+    /**
+     * Complete login by authenticating the user
+     */
+    private function completeLogin(string $email)
+    {
+        Log::info('Completing login', ['email' => $email]);
+
+        $userId = session()->get('login_user_id');
+        $user = User::find($userId);
+
+        if (!$user) {
+            Log::error('User not found during login completion', ['user_id' => $userId]);
+            return back()->withErrors(['error' => 'User not found. Please try again.']);
         }
 
-        Log::warning('OTP verification failed - invalid or expired code', [
+        // Clear verification session data
+        session()->forget(['verification_email', 'verification_type', 'login_user_id']);
+
+        // Authenticate the user
+        $this->authenticateUser($user);
+
+        Log::info('User successfully logged in via OTP verification', [
+            'user_id' => $user->id,
             'email' => $email,
-            'code' => $request->code,
+            'name' => $user->name,
             'timestamp' => now()
         ]);
 
-        return back()->withErrors([
-            'code' => 'Invalid or expired OTP code.',
-        ]);
+        return redirect()->route('home')->with('success', 'Welcome back! You can now explore our souvenir recommendations.');
+    }
+
+    /**
+     * Authenticate user and set session data
+     */
+    private function authenticateUser(User $user): void
+    {
+        session()->put('authenticated', true);
+        session()->put('user_id', $user->id);
+        session()->put('user_email', $user->email);
+        session()->put('user_name', $user->name);
+        session()->put('user_role', $user->role);
+        session()->put('is_admin', $user->is_admin);
+        session()->put('is_root_admin', $user->isRootAdmin());
     }
 
     /**
@@ -236,54 +339,95 @@ class AuthController extends Controller
     {
         Log::info('OTP resend request', ['email' => $request->email]);
 
-        // Rate limiting: Check if user recently requested OTP (60 seconds)
-        $lastResend = Session::get('last_otp_resend');
-        $timeSinceLastResend = $lastResend ? now()->diffInSeconds($lastResend) : 61;
-        $canResend = $timeSinceLastResend >= 60;
-
-        if (!$canResend) {
-            $remainingTime = ceil(60 - $timeSinceLastResend);
-            Log::warning('OTP resend blocked by rate limit', [
-                'email' => $request->email,
-                'remaining_time' => $remainingTime,
-                'last_resend' => $lastResend
-            ]);
-            return back()->withErrors([
-                'email' => "Please wait {$remainingTime} seconds before requesting another OTP.",
-            ]);
-        }
+        $email = $request->email;
 
         // Validate email
         $request->validate([
-            'email' => 'required|email|exists:users,email',
-        ], [
-            'email.exists' => 'Email not found in our system.',
+            'email' => 'required|email',
         ]);
 
-        Log::info('OTP resend request validated', ['email' => $request->email]);
+        // Check if user exists (for login) or get pending user (for registration)
+        $user = User::where('email', $email)->first();
+        $pendingUser = $this->otpService->getPendingUser($email);
 
-        // Generate and store new OTP
-        $code = $this->otpService->generateOtp();
-        $this->otpService->storeOtp($request->email, $code);
+        if (!$user && !$pendingUser) {
+            Log::warning('OTP resend failed - user/pending user not found', ['email' => $email]);
+            return back()->withErrors([
+                'email' => 'Email not found in our system. Please register or login with a valid email.',
+            ]);
+        }
 
-        // Send OTP to queue
-        $emailSent = $this->otpService->sendOtp($request->email, $code);
+        // Check rate limiting
+        $rateLimitCheck = $this->otpService->canResendOtp($email, $request->ip());
 
-        // Update session
-        Session::put('login_email', $request->email);
-        Session::put('last_otp_resend', now());
+        if (!$rateLimitCheck['can_resend']) {
+            return back()->withErrors([
+                'email' => $rateLimitCheck['message'],
+            ]);
+        }
 
-        $message = $emailSent
-            ? 'New OTP code has been dispatched to your email! Please check your inbox.'
-            : 'We could not send OTP email. Please try again later.';
+        try {
+            // Generate and store new OTP
+            $otp = $this->otpService->generateOtp();
+            $this->otpService->storeOtp($email, $otp);
 
-        Log::info('OTP resend completed', [
-            'email' => $request->email,
-            'email_sent' => $emailSent,
-            'timestamp' => now()
-        ]);
+            // Record resend attempt
+            $this->otpService->recordResendAttempt($email);
 
-        return back()->with('success', $message);
+            // Determine name for email
+            $name = $user ? $user->name : ($pendingUser['name'] ?? 'User');
+
+            // Send OTP email
+            $emailSent = $this->sendOtpEmail($email, $name, $otp);
+
+            // Update session
+            session()->put('verification_email', $email);
+
+            $message = $emailSent
+                ? 'New OTP code has been sent to your email! Please check your inbox.'
+                : 'We could not send OTP email. Please try again later.';
+
+            Log::info('OTP resend completed', [
+                'email' => $email,
+                'email_sent' => $emailSent,
+                'timestamp' => now()
+            ]);
+
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+            Log::error('OTP resend failed', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->withErrors(['error' => 'Failed to resend OTP. Please try again.']);
+        }
+    }
+
+    /**
+     * Send OTP email
+     */
+    private function sendOtpEmail(string $email, string $name, string $otp): bool
+    {
+        try {
+            Mail::to($email)->send(new OtpMail($name, $otp));
+
+            Log::info('OTP email sent successfully', [
+                'email' => $email,
+                'name' => $name,
+                'otp' => $otp,
+                'timestamp' => now()
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to send OTP email', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -291,8 +435,8 @@ class AuthController extends Controller
      */
     public function logout()
     {
-        $userId = Session::get('user_id');
-        $email = Session::get('user_email');
+        $userId = session()->get('user_id');
+        $email = session()->get('user_email');
 
         Log::info('User logout', [
             'user_id' => $userId,
@@ -300,14 +444,31 @@ class AuthController extends Controller
             'timestamp' => now()
         ]);
 
-        Session::forget('authenticated');
-        Session::forget('user_id');
-        Session::forget('user_email');
-        Session::forget('user_name');
-        Session::forget('user_role');
-        Session::forget('is_admin');
-        Session::forget('is_root_admin');
+        session()->forget('authenticated');
+        session()->forget('user_id');
+        session()->forget('user_email');
+        session()->forget('user_name');
+        session()->forget('user_role');
+        session()->forget('is_admin');
+        session()->forget('is_root_admin');
 
         return redirect()->route('auth.login')->with('success', 'Logged out successfully!');
+    }
+
+    /**
+     * Clear rate limit data (for testing/dev purposes)
+     * Remove this in production
+     */
+    public function clearRateLimit(Request $request)
+    {
+        $email = $request->email;
+
+        if (!$email) {
+            return back()->withErrors(['error' => 'Email is required']);
+        }
+
+        $this->otpService->clearRateLimitData($email);
+
+        return back()->with('success', 'Rate limit data cleared for ' . $email);
     }
 }

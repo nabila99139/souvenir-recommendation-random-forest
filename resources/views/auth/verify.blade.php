@@ -107,14 +107,40 @@
         <h1>Verify OTP</h1>
 
         <div class="email-info">
+            <div style="margin-bottom: 10px;">
+                <strong>{{ $verificationType === 'registration' ? 'Registration' : 'Login' }} Verification</strong>
+            </div>
             OTP sent to: <strong>{{ $email }}</strong>
         </div>
+
+        <!-- Security Info -->
+        {{-- <div style="background: #e0f2fe; padding: 12px; border-radius: 5px; margin-bottom: 20px; font-size: 12px; color: #0c4a6e; border: 1px solid #bae6fd;">
+            <strong>🔒 Security Info:</strong>
+            <ul style="margin: 5px 0; padding-left: 20px;">
+                <li>OTP expires in 2 minutes</li>
+                <li>Max 3 wrong attempts allowed</li>
+                <li>Wait 60s to resend OTP</li>
+                <li>Max 3 resends per hour</li>
+            </ul>
+        </div> --}}
 
         @if ($errors->any())
             <div class="alert">
                 @foreach ($errors->all() as $error)
                     {{ $error }}
                 @endforeach
+            </div>
+        @endif
+
+        @if (session('success'))
+            <div style="padding: 12px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; color: #155724; margin-bottom: 20px; font-size: 14px;">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if (session('error'))
+            <div class="alert">
+                {{ session('error') }}
             </div>
         @endif
 
@@ -148,7 +174,20 @@
             <button type="submit">Verify</button>
         </form>
 
-        <a href="{{ route('auth.login') }}" class="back-link">Back to Login</a>
+        @if($verificationType === 'registration')
+            <a href="{{ route('auth.register') }}" class="back-link">Back to Registration</a>
+        @else
+            <a href="{{ route('auth.login') }}" class="back-link">Back to Login</a>
+        @endif
+
+        <!-- Development Only: Clear Rate Limits -->
+        @if(env('APP_ENV') !== 'production')
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
+            <a href="#" onclick="if(confirm('Clear rate limits for testing?')) { window.location.href = '{{ route('clear.rate.limit', ['email' => $email]) }}'; } return false;" style="color: #dc2626; font-size: 12px; text-decoration: underline;">
+                🧹 Clear Rate Limits (Dev Only)
+            </a>
+        </div>
+        @endif
     </div>
 </body>
 </html>

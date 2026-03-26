@@ -26,6 +26,9 @@ Route::post('/verify', [AuthController::class, 'verify'])->name('auth.verify');
 Route::post('/resend', [AuthController::class, 'resend'])->name('auth.resend');
 Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 
+// Development: Clear rate limits (REMOVE IN PRODUCTION)
+Route::post('/clear-rate-limit', [AuthController::class, 'clearRateLimit'])->name('clear.rate.limit');
+
 // ============================================
 // AUTHENTICATED USER ROUTES
 // ============================================

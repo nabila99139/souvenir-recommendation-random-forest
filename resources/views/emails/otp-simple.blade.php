@@ -10,7 +10,7 @@
 
         <h1 style="color: #6366f1;">🔐 Verification Code</h1>
 
-        <p>Hello, <strong>{{ $user->name }}</strong>!</p>
+        <p>Hello, <strong>{{ is_object($user) && isset($user->name) ? $user->name : (is_array($user) && isset($user['name']) ? $user['name'] : 'User') }}</strong>!</p>
 
         <p>Your verification code is:</p>
 
@@ -20,14 +20,14 @@
             </span>
         </div>
 
-        <p>This code will expire in 10 minutes.</p>
+        <p>This code will expire in 2 minutes.</p>
 
         <p style="margin-top: 30px; padding: 15px; background: #fef2f2; border-left: 4px solid #fecaca; color: #991b1b;">
             <strong>Security Notice:</strong> Never share this code with anyone. If you didn't request this code, please ignore this email.
         </p>
 
         <p style="margin-top: 30px; font-size: 12px; color: #64748b;">
-            This email was sent to {{ $user->email }} from {{ $appName }}.<br>
+            This email was sent to {{ is_object($user) && isset($user->email) ? $user->email : (is_array($user) && isset($user['email']) ? $user['email'] : 'you') }} from {{ $appName }}.<br>
             © {{ date('Y') }} {{ $appName }}. All rights reserved.
         </p>
 
