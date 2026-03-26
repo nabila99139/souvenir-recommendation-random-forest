@@ -238,10 +238,11 @@ class AuthController extends Controller
 
         // Rate limiting: Check if user recently requested OTP (60 seconds)
         $lastResend = Session::get('last_otp_resend');
-        $canResend = !$lastResend || (now()->diffInSeconds($lastResend) >= 60);
+        $timeSinceLastResend = $lastResend ? now()->diffInSeconds($lastResend) : 61;
+        $canResend = $timeSinceLastResend >= 60;
 
         if (!$canResend) {
-            $remainingTime = 60 - now()->diffInSeconds($lastResend);
+            $remainingTime = ceil(60 - $timeSinceLastResend);
             Log::warning('OTP resend blocked by rate limit', [
                 'email' => $request->email,
                 'remaining_time' => $remainingTime,
@@ -270,7 +271,7 @@ class AuthController extends Controller
 
         // Update session
         Session::put('login_email', $request->email);
-        Session::put('last_otp_resend', now()->toDateTimeString());
+        Session::put('last_otp_resend', now());
 
         $message = $emailSent
             ? 'New OTP code has been dispatched to your email! Please check your inbox.'

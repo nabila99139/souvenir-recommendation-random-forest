@@ -61,10 +61,10 @@ class OtpService
 
             if ($user) {
                 try {
-                    // Dispatch email to queue for async processing
-                    Mail::to($user->email)->queue(new OtpMail($user, $code));
+                    // Send email synchronously for testing (remove queue for now)
+                    Mail::to($user->email)->send(new OtpMail($user, $code));
 
-                    Log::info('OTP email dispatched to queue', [
+                    Log::info('OTP email sent successfully', [
                         'email' => $email,
                         'user_id' => $user->id,
                         'user_name' => $user->name,
@@ -74,7 +74,7 @@ class OtpService
 
                     return true;
                 } catch (\Exception $e) {
-                    Log::error('Failed to dispatch OTP email', [
+                    Log::error('Failed to send OTP email', [
                         'email' => $email,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString()

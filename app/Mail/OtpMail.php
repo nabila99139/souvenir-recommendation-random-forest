@@ -68,8 +68,16 @@ class OtpMail extends Mailable implements ShouldQueue
      */
     public function content(): Content
     {
+        Log::info('Rendering OTP email content', [
+            'view' => 'emails.otp-simple',
+            'user_id' => $this->user->id ?? null,
+            'user_name' => $this->user->name ?? null,
+            'otp' => $this->otp,
+            'appName' => config('app.name'),
+        ]);
+
         return new Content(
-            view: 'emails.otp',
+            view: 'emails.otp-simple',
             with: [
                 'user' => $this->user,
                 'otp' => $this->otp,
