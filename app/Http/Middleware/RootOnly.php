@@ -1,0 +1,33 @@
+<?php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * Root Only Middleware
+ * Only allows authenticated Root users to access the route.
+ */
+class RootOnly
+{
+    /**
+     * Handle an incoming request.
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        if (!Auth::check()) {
+            return redirect()->route('auth.login')->with('error', 'Please login to continue.');
+        }
+
+        $user = Auth::user();
+
+        if (!$user->isRoot()) {
+            return redirect()->route('home')->with('error', 'Access denied. Root access required.');
+        }
+
+        return $next($request);
+    }
+}

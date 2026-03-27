@@ -26,11 +26,11 @@
                     <a href="{{ route('catalog') }}" class="text-gray-700 hover:text-indigo-600 transition">
                         <i class="fas fa-th-large"></i> Catalog
                     </a>
-                    @if(session('authenticated'))
+                    @if(auth()->check())
                         <span class="text-gray-600">
-                            <i class="fas fa-user"></i> {{ session('user_name') }}
+                            <i class="fas fa-user"></i> {{ auth()->user()->name }}
                         </span>
-                        @if(session('is_admin'))
+                        @if(auth()->user()->isRoot())
                             <a href="{{ route('admin.dashboard') }}" class="text-indigo-600 hover:text-indigo-800 transition" title="Admin Panel">
                                 <i class="fas fa-shield-alt"></i>
                             </a>

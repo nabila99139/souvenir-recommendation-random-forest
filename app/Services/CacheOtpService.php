@@ -89,8 +89,6 @@ class CacheOtpService
             'otp' => $otp,
             'role' => $role,
             'is_admin' => $isAdmin,
-            'cid' => null,
-            'sid' => null,
             'authorized_by' => null,
             'created_at' => now(),
         ];
@@ -100,6 +98,7 @@ class CacheOtpService
         Log::info('Pending user stored in cache', [
             'email' => $email,
             'name' => $name,
+            'role' => $role,
             'expires_at' => now()->addMinutes(self::PENDING_USER_EXPIRY_MINUTES)->toDateTimeString(),
         ]);
 

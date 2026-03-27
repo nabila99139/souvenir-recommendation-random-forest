@@ -169,6 +169,21 @@
             </div>
 
             <div class="form-group">
+                <label for="role">Account Type</label>
+                <select
+                    id="role"
+                    name="role"
+                    required
+                    style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px; background: white;"
+                >
+                    <option value="">Select account type</option>
+                    <option value="customer" {{ old('role') === 'customer' ? 'selected' : '' }}>Customer</option>
+                    <option value="seller" {{ old('role') === 'seller' ? 'selected' : '' }}>Seller</option>
+                </select>
+                <small style="color: #888; font-size: 12px;">Choose Customer to get recommendations, or Seller to manage your souvenir business</small>
+            </div>
+
+            <div class="form-group">
                 <label for="password">Password</label>
                 <div class="password-container">
                     <input

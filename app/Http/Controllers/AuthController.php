@@ -5,10 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Services\CacheOtpService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\OtpMail;
+
 
 class AuthController extends Controller
 {
@@ -40,12 +42,13 @@ class AuthController extends Controller
      */
     public function register(Request $request)
     {
-        Log::info('Registration attempt started', ['email' => $request->email]);
+        Log::info('Registration attempt started', ['email' => $request->email, 'role' => $request->role]);
 
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|regex:/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/|unique:users,email',
             'password' => 'required|string|min:6|max:50|confirmed',
+            'role' => 'required|in:customer,seller', // Only Customer or Seller allowed for public registration
         ], [
             'name.required' => 'Name is required',
             'name.max' => 'Name must not exceed 255 characters',
@@ -58,11 +61,16 @@ class AuthController extends Controller
             'password.min' => 'Password must be at least 6 characters',
             'password.max' => 'Password must not exceed 50 characters',
             'password.confirmed' => 'Password confirmation does not match',
+            'role.required' => 'Please select an account type',
+            'role.in' => 'Invalid account type selected',
         ]);
 
         try {
             // Generate OTP
             $otp = $this->otpService->generateOtp();
+
+            // Determine admin status based on role
+            $isAdmin = false;
 
             // Store pending user data in cache (not in database)
             $this->otpService->storePendingUser(
@@ -70,8 +78,8 @@ class AuthController extends Controller
                 name: $request->name,
                 hashedPassword: Hash::make($request->password),
                 otp: $otp,
-                role: 'admin',
-                isAdmin: true
+                role: $request->role,
+                isAdmin: $isAdmin
             );
 
             // Store OTP in cache
@@ -83,10 +91,12 @@ class AuthController extends Controller
             // Store email in session for verification page
             session()->put('verification_email', $request->email);
             session()->put('verification_type', 'registration');
+            session()->put('registration_role', $request->role);
 
             Log::info('Pending registration stored and OTP sent', [
                 'email' => $request->email,
                 'name' => $request->name,
+                'role' => $request->role,
                 'email_sent' => $emailSent,
                 'timestamp' => now()
             ]);
@@ -99,6 +109,7 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             Log::error('Registration failed', [
                 'email' => $request->email,
+                'role' => $request->role,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -255,8 +266,6 @@ class AuthController extends Controller
                 'password' => $pendingUser['password'], // Already hashed
                 'role' => $pendingUser['role'],
                 'is_admin' => $pendingUser['is_admin'],
-                'cid' => $pendingUser['cid'],
-                'sid' => $pendingUser['sid'],
                 'authorized_by' => $pendingUser['authorized_by'],
             ]);
 
@@ -273,10 +282,20 @@ class AuthController extends Controller
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'name' => $user->name,
+                'role' => $user->role,
                 'timestamp' => now()
             ]);
 
-            return redirect()->route('home')->with('success', 'Registration successful! Welcome to our souvenir recommendation system.');
+            // Redirect to appropriate dashboard based on role
+            $dashboardRoute = $user->getDashboardRoute();
+            $welcomeMessage = match($user->role) {
+                User::ROLE_CUSTOMER => 'Registration successful! Welcome to your customer dashboard.',
+                User::ROLE_SELLER => 'Registration successful! Welcome to your seller dashboard.',
+                User::ROLE_ROOT => 'Registration successful! Welcome, Admin.',
+                default => 'Registration successful! Welcome to our system.',
+            };
+
+            return redirect()->route($dashboardRoute)->with('success', $welcomeMessage);
         } catch (\Exception $e) {
             Log::error('Failed to complete registration', [
                 'email' => $email,
@@ -299,7 +318,7 @@ class AuthController extends Controller
 
         if (!$user) {
             Log::error('User not found during login completion', ['user_id' => $userId]);
-            return back()->withErrors(['error' => 'User not found. Please try again.']);
+            return back()->withErrors(['error' => 'Session expired. Please try again.']);
         }
 
         // Clear verification session data
@@ -312,10 +331,24 @@ class AuthController extends Controller
             'user_id' => $user->id,
             'email' => $email,
             'name' => $user->name,
+            'role' => $user->role,
             'timestamp' => now()
         ]);
 
-        return redirect()->route('home')->with('success', 'Welcome back! You can now explore our souvenir recommendations.');
+        // Redirect to appropriate dashboard based on role
+        $dashboardRoute = $user->getDashboardRoute();
+        $welcomeMessage = match($user->role) {
+            User::ROLE_ROOT => 'Welcome back, Admin! Full system control is now at your fingertips.',
+            User::ROLE_CUSTOMER => 'Welcome back! You can now explore our souvenir recommendations.',
+            User::ROLE_SELLER => 'Welcome back! Manage your souvenir business and track customer views.',
+            default => 'Welcome back! You can now explore our souvenir recommendations.',
+        };
+        //     User::ROLE_SELLER => 'Welcome back! Manage your souvenir business.',
+        //     User::ROLE_ROOT => 'Welcome back, Admin! System is under your control.',
+        //     default => 'Welcome back! You can now explore our system.',
+        // };
+
+        return redirect()->route($dashboardRoute)->with('success', $welcomeMessage);
     }
 
     /**
@@ -323,11 +356,14 @@ class AuthController extends Controller
      */
     private function authenticateUser(User $user): void
     {
-        session()->put('authenticated', true);
-        session()->put('user_id', $user->id);
-        session()->put('user_email', $user->email);
-        session()->put('user_name', $user->name);
+        // Use Laravel's built-in Auth system
+        Auth::login($user);
+
+        // Additional session data for views
         session()->put('user_role', $user->role);
+        session()->put('is_root', $user->isRoot());
+        session()->put('is_customer', $user->isCustomer());
+        session()->put('is_seller', $user->isSeller());
         session()->put('is_admin', $user->is_admin);
         session()->put('is_root_admin', $user->isRootAdmin());
     }
@@ -435,8 +471,8 @@ class AuthController extends Controller
      */
     public function logout()
     {
-        $userId = session()->get('user_id');
-        $email = session()->get('user_email');
+        $userId = Auth::id();
+        $email = Auth::user() ? Auth::user()->email : null;
 
         Log::info('User logout', [
             'user_id' => $userId,
@@ -444,13 +480,8 @@ class AuthController extends Controller
             'timestamp' => now()
         ]);
 
-        session()->forget('authenticated');
-        session()->forget('user_id');
-        session()->forget('user_email');
-        session()->forget('user_name');
-        session()->forget('user_role');
-        session()->forget('is_admin');
-        session()->forget('is_root_admin');
+        // Use Laravel's built-in Auth logout
+        Auth::logout();
 
         return redirect()->route('auth.login')->with('success', 'Logged out successfully!');
     }

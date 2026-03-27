@@ -15,6 +15,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.session' => \App\Http\Middleware\AuthenticateSession::class,
             'admin.only' => \App\Http\Middleware\AdminOnly::class,
             'access.control' => \App\Http\Middleware\AccessControl::class,
+            // Role-based middleware
+            'root.only' => \App\Http\Middleware\RootOnly::class,
+            'customer.only' => \App\Http\Middleware\CustomerOnly::class,
+            'seller.only' => \App\Http\Middleware\SellerOnly::class,
+            'role.redirect' => \App\Http\Middleware\RoleBasedRedirect::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

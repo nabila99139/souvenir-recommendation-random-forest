@@ -2,6 +2,17 @@
 
 @section('title', 'Home - Find Perfect Souvenirs')
 
+@php
+use App\Models\User;
+$userRole = auth()->check() ? auth()->user()->role : 'guest';
+$pageTitle = match($userRole) {
+    User::ROLE_ROOT => 'Root Admin Dashboard',
+    User::ROLE_CUSTOMER => 'Customer Dashboard',
+    User::ROLE_SELLER => 'Seller Dashboard',
+    default => 'Home - Find Perfect Souvenirs',
+};
+@endphp
+
 @push('styles')
 <style>
     .line-clamp-3 {
@@ -19,11 +30,29 @@
     <div class="text-center mb-12">
         <h1 class="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             <i class="fas fa-globe-asia text-indigo-600"></i>
-            Find Your Perfect
-            <span class="text-indigo-600">Indonesian Souvenirs</span>
+            @if($userRole === User::ROLE_CUSTOMER)
+                Find Your Perfect
+                <span class="text-indigo-600">Indonesian Souvenirs</span>
+            @elseif($userRole === User::ROLE_SELLER)
+                Manage Your
+                <span class="text-purple-600">Souvenir Business</span>
+            @elseif($userRole === User::ROLE_ROOT)
+                <span class="text-indigo-600">Root Admin Dashboard</span>
+            @else
+                Find Your Perfect
+                <span class="text-indigo-600">Indonesian Souvenirs</span>
+            @endif
         </h1>
         <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-            Our AI-powered system recommends the best oleh-oleh (souvenirs) based on your preferences, budget, and purpose.
+            @if($userRole === User::ROLE_CUSTOMER)
+                Our AI-powered system recommends the best oleh-oleh (souvenirs) based on your preferences, budget, and purpose.
+            @elseif($userRole === User::ROLE_SELLER)
+                Manage your souvenir inventory, track customer views, and grow your business.
+            @elseif($userRole === User::ROLE_ROOT)
+                Manage users, monitor system performance, and oversee all platform operations.
+            @else
+                Our AI-powered system recommends the best oleh-oleh (souvenirs) based on your preferences, budget, and purpose.
+            @endif
         </p>
 
         @if(session('error'))
@@ -179,10 +208,15 @@
                     <i class="fas fa-cookie text-3xl text-indigo-600 mb-3"></i>
                     <p class="font-semibold">Food</p>
                 </a>
-                @if(session('is_admin'))
+                @if(auth()->user()?->isRoot())
                     <a href="{{ route('admin.dashboard') }}" class="bg-indigo-600 text-white rounded-lg p-6 shadow hover:shadow-lg transition hover:bg-indigo-700">
                         <i class="fas fa-shield-alt text-3xl mb-3"></i>
-                        <p class="font-semibold">Admin Panel</p>
+                        <p class="font-semibold">Root Admin Panel</p>
+                    </a>
+                @elseif(auth()->user()?->isSeller())
+                    <a href="{{ route('seller.dashboard') }}" class="bg-purple-600 text-white rounded-lg p-6 shadow hover:shadow-lg transition hover:bg-purple-700">
+                        <i class="fas fa-store text-3xl mb-3"></i>
+                        <p class="font-semibold">Seller Dashboard</p>
                     </a>
                 @else
                     <a href="{{ route('catalog') }}" class="bg-white rounded-lg p-6 shadow hover:shadow-lg transition hover:bg-indigo-50">

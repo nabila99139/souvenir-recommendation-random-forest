@@ -62,7 +62,7 @@
                         <i class="fas fa-user text-white"></i>
                     </div>
                     <div class="flex-1">
-                        <p class="text-white font-semibold text-sm">{{ session('user_name') }}</p>
+                        <p class="text-white font-semibold text-sm">{{ auth()->user()->name }}</p>
                         <p class="text-gray-400 text-xs">Root Administrator</p>
                     </div>
                 </div>
