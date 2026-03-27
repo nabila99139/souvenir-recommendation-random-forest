@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -36,7 +37,8 @@ class RoleBasedRedirect
         // Redirect users to their dashboard if accessing wrong routes
         foreach ($protectedRoutes as $route => $allowedRoles) {
             if ($routeName === $route && !in_array($user->role, $allowedRoles)) {
-                return redirect()->route($user->getDashboardRoute());
+                return redirect()->route($user->getDashboardRoute())
+                    ->with('error', 'Access denied. Redirected to your appropriate dashboard.');
             }
         }
 

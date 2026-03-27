@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Role-based middleware
             'root.only' => \App\Http\Middleware\RootOnly::class,
             'customer.only' => \App\Http\Middleware\CustomerOnly::class,
+            'customer.or.admin' => \App\Http\Middleware\CustomerOrAdminOnly::class,
             'seller.only' => \App\Http\Middleware\SellerOnly::class,
             'role.redirect' => \App\Http\Middleware\RoleBasedRedirect::class,
         ]);

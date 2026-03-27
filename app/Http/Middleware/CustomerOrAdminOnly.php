@@ -8,10 +8,11 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Customer Only Middleware
- * Only allows authenticated Customer users to access the route.
+ * Customer Or Admin Only Middleware
+ * Allows authenticated Customer users and Root Admin users to access the route.
+ * This is useful for routes that should be customer-facing but also accessible to admins for testing/oversight.
  */
-class CustomerOnly
+class CustomerOrAdminOnly
 {
     /**
      * Handle an incoming request.
@@ -25,18 +26,16 @@ class CustomerOnly
 
         $user = Auth::user();
 
-        if (!$user->isCustomer()) {
+        // Allow access to customers and admins only
+        if (!$user->isCustomer() && !$user->isRoot()) {
             // Redirect to appropriate dashboard based on user role
             if ($user->isSeller()) {
                 return redirect()->route('seller.dashboard')
-                    ->with('error', 'Access denied. This area is for customers only. You are being redirected to your seller dashboard.');
-            } elseif ($user->isRoot()) {
-                return redirect()->route('admin.dashboard')
-                    ->with('error', 'Access denied. This area is for customers only. You are being redirected to your admin dashboard.');
+                    ->with('error', 'Access denied. This area is for customers and admins only. You are being redirected to your seller dashboard.');
             }
 
             return redirect()->route('welcome')
-                ->with('error', 'Access denied. Customer access required.');
+                ->with('error', 'Access denied. Customer or admin access required.');
         }
 
         return $next($request);

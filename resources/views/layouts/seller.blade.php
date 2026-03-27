@@ -61,7 +61,7 @@
                     </div>
                 </div>
                 <div class="space-y-2">
-                    <a href="{{ route('home') }}" class="block text-center bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition text-sm">
+                    <a href="{{ route('catalog') }}" class="block text-center bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition text-sm">
                         <i class="fas fa-home mr-2"></i>Back to App
                     </a>
                     <form action="{{ route('auth.logout') }}" method="POST" class="block">

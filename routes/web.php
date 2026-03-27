@@ -31,21 +31,22 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
 Route::post('/clear-rate-limit', [AuthController::class, 'clearRateLimit'])->name('clear.rate.limit');
 
 // ============================================
-// AUTHENTICATED USER ROUTES
+// CUSTOMER ROUTES (Customer Access Only)
 // ============================================
 
-Route::middleware('auth.session')->group(function () {
-    // Home page with recommendation form
-    Route::get('/home', [HomeController::class, 'index'])->name('home');
+// Main customer dashboard (customers only)
+Route::middleware('customer.only')->get('/home', [HomeController::class, 'index'])->name('home');
 
+// Customer-facing features (customers and admins only for testing/oversight)
+Route::middleware('customer.or.admin')->group(function () {
     // Catalog page
-    Route::get('/home/catalog', [HomeController::class, 'catalog'])->name('catalog');
+    Route::get('/catalog', [HomeController::class, 'catalog'])->name('catalog');
 
     // Recommendation submission
-    Route::post('/home/recommend', [HomeController::class, 'submitRecommendation'])->name('recommend.submit');
+    Route::post('/recommend', [HomeController::class, 'submitRecommendation'])->name('recommend.submit');
 
     // Recommendation results
-    Route::get('/home/recommend/results', [HomeController::class, 'showResults'])->name('recommend.results');
+    Route::get('/recommend/results', [HomeController::class, 'showResults'])->name('recommend.results');
 });
 
 // ============================================
@@ -81,7 +82,7 @@ Route::middleware(['auth.session', 'seller.only'])->prefix('seller')->name('sell
 Route::middleware(['auth.session', 'admin.only'])->prefix('admin')->name('admin.')->group(function () {
     // Admin Dashboard
     Route::get('/', [AdminController::class, 'dashboard'])->name('dashboard');
-    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard.index');
+    // Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('dashboard.index');
 
     // System Settings
     Route::get('/settings', [AdminController::class, 'settings'])->name('settings');

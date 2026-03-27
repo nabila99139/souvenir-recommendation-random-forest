@@ -19,13 +19,24 @@ class SellerOnly
     public function handle(Request $request, Closure $next): Response
     {
         if (!Auth::check()) {
-            return redirect()->route('auth.login')->with('error', 'Please login to continue.');
+            return redirect()->route('auth.login')
+                ->with('error', 'Authentication required. Please login to continue.');
         }
 
         $user = Auth::user();
 
         if (!$user->isSeller()) {
-            return redirect()->route('home')->with('error', 'Access denied. Seller access required.');
+            // Redirect to appropriate dashboard based on user role
+            if ($user->isCustomer()) {
+                return redirect()->route('home')
+                    ->with('error', 'Access denied. This area is for sellers only. You are being redirected to the customer area.');
+            } elseif ($user->isRoot()) {
+                return redirect()->route('admin.dashboard')
+                    ->with('error', 'Access denied. This area is for sellers only. You are being redirected to your admin dashboard.');
+            }
+
+            return redirect()->route('welcome')
+                ->with('error', 'Access denied. Seller access required.');
         }
 
         return $next($request);
