@@ -107,7 +107,7 @@
                                         </button>
                                     </form>
                                 @else
-                                    <form action="{{ route('admin.users.promote', $user) }}" method="POST" class="inline">
+                                    <form action="{{ route('admin.users.promote-root', $user) }}" method="POST" class="inline">
                                         @csrf
                                         <button type="submit" class="text-purple-600 hover:text-purple-900">
                                             <i class="fas fa-user-shield" title="Promote to Admin"></i>

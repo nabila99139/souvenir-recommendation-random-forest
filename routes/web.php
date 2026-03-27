@@ -35,10 +35,11 @@ Route::post('/clear-rate-limit', [AuthController::class, 'clearRateLimit'])->nam
 // ============================================
 
 // Main customer dashboard (customers only)
-Route::middleware('customer.only')->get('/home', [HomeController::class, 'index'])->name('home');
+// Route::middleware('customer.only')->get('/home', [HomeController::class, 'index'])->name('home');
 
 // Customer-facing features (customers and admins only for testing/oversight)
-Route::middleware('customer.or.admin')->group(function () {
+Route::middleware('customer.only')->group(function () {
+    Route::get('/home', [HomeController::class, 'index'])->name('home');
     // Catalog page
     Route::get('/catalog', [HomeController::class, 'catalog'])->name('catalog');
 
